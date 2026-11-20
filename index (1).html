@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Курьер постапокалипсиса: Авто-конвой</title>
+<script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #12100e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #f3e9d2;
+    touch-action: none;
+  }
+  #game-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    background: #1b1713;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.85);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)) 16px;
+    background: linear-gradient(180deg, rgba(18,16,14,0.94) 0%, rgba(28,22,17,0.92) 100%);
+    z-index: 20;
+    transition: opacity 0.2s ease;
+    touch-action: manipulation;
+  }
+  .screen.hidden {
+    display: none !important;
+    pointer-events: none !important;
+  }
+  .header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid #4a3b2c;
+    border-radius: 12px;
+    padding: 10px 14px;
+  }
+  .stat-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .stat-pill span.val { color: #ffb703; }
+  .icon-btn {
+    background: #382e24;
+    border: 1px solid #63513f;
+    color: #f3e9d2;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .title-block {
+    text-align: center;
+    margin: 6px 0;
+  }
+  .title-block h1 {
+    font-size: clamp(22px, 6vw, 30px);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fb8500;
+    text-shadow: 0 3px 10px rgba(251,133,0,0.4);
+  }
+  .title-block p {
+    font-size: 13px;
+    color: #bba993;
+    margin-top: 4px;
+  }
+  .upgrades-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 6px 0;
+    overflow-y: auto;
+    max-height: 44vh;
+    padding-right: 2px;
+    touch-action: pan-y;
+  }
+  .upg-card {
+    background: #272019;
+    border: 1px solid #524130;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .upg-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #f3e9d2;
+  }
+  .upg-lvl {
+    font-size: 12px;
+    color: #ffb703;
+  }
+  .upg-desc {
+    font-size: 11px;
+    color: #b5a48f;
+    line-height: 1.25;
+  }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: transform 0.08s ease, filter 0.15s ease;
+    touch-action: manipulation;
+  }
+  .btn:active {
+    transform: scale(0.96);
+  }
+  .btn-upg {
+    background: #3d3124;
+    color: #ffb703;
+    border: 1px solid #ffb703;
+    padding: 8px 6px;
+    font-size: 12px;
+    width: 100%;
+  }
+  .btn-upg:disabled {
+    opacity: 0.45;
+    border-color: #665848;
+    color: #998a7a;
+    cursor: default;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #fb8500 0%, #d95d00 100%);
+    color: #fff;
+    padding: 15px 20px;
+    font-size: 18px;
+    width: 100%;
+    box-shadow: 0 6px 20px rgba(251,133,0,0.45);
+  }
+  .btn-reward {
+    background: linear-gradient(180deg, #2a9d8f 0%, #1f7a6f 100%);
+    color: #fff;
+    padding: 13px 16px;
+    font-size: 14px;
+    width: 100%;
+    box-shadow: 0 4px 14px rgba(42,157,143,0.4);
+  }
+  .btn-vk {
+    background: linear-gradient(180deg, #0077ff 0%, #005ecb 100%);
+    color: #fff;
+    padding: 12px 14px;
+    font-size: 13px;
+    width: 100%;
+  }
+  .btn-secondary {
+    background: #382e24;
+    color: #f3e9d2;
+    border: 1px solid #63513f;
+    padding: 12px 16px;
+    font-size: 14px;
+    width: 100%;
+  }
+  .actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .social-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  /* HUD */
+  #hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom)) 12px;
+    z-index: 10;
+  }
+  #hud.hidden { display: none !important; }
+  .hud-top {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .hud-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .hud-badge {
+    background: rgba(18,16,14,0.78);
+    border: 1px solid rgba(255,183,3,0.4);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .hp-bar-wrap {
+    flex: 1;
+    height: 16px;
+    background: rgba(0,0,0,0.65);
+    border: 1px solid #5c4938;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .hp-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #e63946, #52b788);
+    transition: width 0.1s linear;
+  }
+  .hp-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    text-shadow: 0 1px 2px #000;
+  }
+  .hud-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+  }
+  .skills-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .skill-btn {
+    position: relative;
+    background: rgba(32, 26, 20, 0.9);
+    border: 1.5px solid #fb8500;
+    border-radius: 12px;
+    padding: 10px 6px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    text-align: center;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  .skill-btn:disabled {
+    border-color: #55473a;
+    color: #9e8f7e;
+  }
+  .skill-cd {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: #ffb703;
+    width: 0%;
+  }
+  .lane-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .lane-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 183, 3, 0.35);
+    border-radius: 12px;
+    padding: 14px;
+    color: #f3e9d2;
+    font-size: 18px;
+    font-weight: 800;
+    text-align: center;
+    touch-action: manipulation;
+  }
+  .lane-btn:active {
+    background: rgba(251, 133, 0, 0.35);
+  }
+  .summary-box {
+    background: #241d17;
+    border: 1px solid #594634;
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 15px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .leaderboard-mini {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid #423427;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #cbbba8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #ad-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 24px;
+    text-align: center;
+  }
+  #ad-overlay.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="game-wrapper">
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- ГЛАВНОЕ МЕНЮ / ГАРАЖ -->
+  <div id="screen-garage" class="screen">
+    <div>
+      <div class="header-bar">
+        <div class="stat-pill">🔩 Лом: <span class="val" id="ui-scrap">0</span></div>
+        <div class="stat-pill">🏆 Рекорд: <span class="val" id="ui-best">0 м</span></div>
+        <button type="button" class="icon-btn" id="btn-sound" title="Звук">🔊</button>
+      </div>
+      <div class="title-block">
+        <h1>Авто-конвой</h1>
+        <p>Прорывайся сквозь пустошь, улучшай броневик и бей рекорды</p>
+      </div>
+      <div class="leaderboard-mini">
+        <span id="ui-rank">Рейтинг: Новичок (Топ 45%)</span>
+        <button type="button" class="icon-btn" id="btn-top" style="padding:4px 8px;font-size:11px;">🏆 Таблица</button>
+      </div>
+    </div>
+
+    <div class="upgrades-grid" id="upgrades-list"></div>
+
+    <div class="actions-stack">
+      <div class="social-row">
+        <button type="button" class="btn btn-vk" id="btn-invite">👥 Друзья</button>
+        <button type="button" class="btn btn-secondary" id="btn-free-scrap">📺 +50 🔩 Лома</button>
+      </div>
+      <button type="button" class="btn btn-primary" id="btn-start">🚚 В РЕЙС</button>
+    </div>
+  </div>
+
+  <!-- ИГРОВОЙ HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-row">
+        <div class="hp-bar-wrap">
+          <div class="hp-bar-fill" id="hud-hp-fill"></div>
+          <div class="hp-text" id="hud-hp-text">100 / 100</div>
+        </div>
+        <div class="hud-badge">🔩 <span id="hud-scrap">0</span></div>
+      </div>
+      <div class="hud-row">
+        <div class="hud-badge">🛣️ <span id="hud-dist">0 м</span></div>
+        <div class="hud-badge">⚡ Сектор <span id="hud-wave">1</span></div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="skills-row">
+        <button type="button" class="skill-btn" id="skill-nitro">
+          🔥 НИТРО<br><small>Таран [1]</small>
+          <div class="skill-cd" id="cd-nitro"></div>
+        </button>
+        <button type="button" class="skill-btn" id="skill-emp">
+          ⚡ ЭМИ<br><small>Разряд [2]</small>
+          <div class="skill-cd" id="cd-emp"></div>
+        </button>
+        <button type="button" class="skill-btn" id="skill-repair">
+          🔧 РЕМОНТ<br><small>+35% HP [3]</small>
+          <div class="skill-cd" id="cd-repair"></div>
+        </button>
+      </div>
+      <div class="lane-controls">
+        <button type="button" class="lane-btn" id="btn-left">◀ ВЛЕВО</button>
+        <button type="button" class="lane-btn" id="btn-right">ВПРАВО ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН РЕЗУЛЬТАТОВ -->
+  <div id="screen-gameover" class="screen hidden">
+    <div class="title-block">
+      <h1 id="go-title">КОНВОЙ ОСТАНОВЛЕН</h1>
+      <p>Груз доставлен в ближайший бункер</p>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-row"><span>Пройдено дистанции:</span><strong id="go-dist">0 м</strong></div>
+      <div class="summary-row"><span>Уничтожено рейдеров:</span><strong id="go-kills">0</strong></div>
+      <div class="summary-row"><span>Собрано лома:</span><strong style="color:#ffb703" id="go-scrap">+0 🔩</strong></div>
+    </div>
+
+    <div class="actions-stack">
+      <button type="button" class="btn btn-reward" id="btn-revive">📺 Починить и продолжить (1 раз)</button>
+      <button type="button" class="btn btn-reward" id="btn-double">📺 Удвоить добычу (x2 лом)</button>
+      <button type="button" class="btn btn-vk" id="btn-share">📢 Поделиться рекордом на стене</button>
+      <button type="button" class="btn btn-primary" id="btn-retry">🔄 Новый рейс</button>
+      <button type="button" class="btn btn-secondary" id="btn-garage">🛠️ В гараж</button>
+    </div>
+  </div>
+
+  <!-- ОВЕРЛЕЙ СИМУЛЯТОРА РЕКЛАМЫ (ЕСЛИ ЗАПУЩЕНО ВНЕ ВК) -->
+  <div id="ad-overlay" class="hidden">
+    <div style="font-size:36px;">📺</div>
+    <h2 style="color:#ffb703;">Рекламный блок</h2>
+    <p id="ad-timer-text" style="color:#cbbba8;">Вознаграждение через 2 сек...</p>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // --- ПОЛИФИЛЛ roundRect ДЛЯ СТАРЫХ WEBVIEW (iOS/Android ВК) ---
+  if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+      this.beginPath();
+      this.moveTo(x + r.tl, y);
+      this.lineTo(x + w - r.tr, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+      this.lineTo(x + w, y + h - r.br);
+      this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+      this.lineTo(x + r.bl, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+      this.lineTo(x, y + r.tl);
+      this.quadraticCurveTo(x, y, x + r.tl, y);
+      this.closePath();
+      return this;
+    };
+  }
+
+  // --- БЕЗОПАСНОЕ ХРАНИЛИЩЕ ---
+  var memoryStorage = {};
+  var SafeStorage = {
+    get: function(key) {
+      try {
+        return window.localStorage.getItem(key);
+      } catch (e) {
+        return memoryStorage[key] || null;
+      }
+    },
+    set: function(key, val) {
+      memoryStorage[key] = String(val);
+      try {
+        window.localStorage.setItem(key, String(val));
+      } catch (e) {}
+    }
+  };
+
+  // --- СИНТЕЗАТОР ЗВУКА ---
+  var Sound = {
+    ctx: null,
+    muted: false,
+    unlock: function() {
+      try {
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!this.ctx) this.ctx = new AudioCtx();
+        if (this.ctx.state === 'suspended' && !this.muted) this.ctx.resume();
+      } catch (e) {}
+    },
+    play: function(freq, type, dur, vol) {
+      if (this.muted) return;
+      try {
+        if (!this.ctx || this.ctx.state !== 'running') return;
+        var osc = this.ctx.createOscillator();
+        var gain = this.ctx.createGain();
+        osc.type = type || 'sawtooth';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(30, freq * 0.35), this.ctx.currentTime + dur);
+        gain.gain.setValueAtTime(vol || 0.06, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + dur);
+      } catch (e) {}
+    }
+  };
+
+  // --- ИНТЕГРАЦИЯ VK BRIDGE (ВКОНТАКТЕ ИГРЫ) ---
+  var isAppHidden = false;
+  var VKPlatform = {
+    isVK: false,
+    bridge: null,
+    init: function() {
+      try {
+        if (window.vkBridge && typeof window.vkBridge.send === 'function') {
+          this.bridge = window.vkBridge;
+
+          // Подписка на сворачивание/разворачивание вкладки или показ рекламы в ВК
+          if (typeof this.bridge.subscribe === 'function') {
+            this.bridge.subscribe(function(e) {
+              if (!e || !e.detail) return;
+              if (e.detail.type === 'VKWebAppViewHide') {
+                isAppHidden = true;
+              } else if (e.detail.type === 'VKWebAppViewRestore') {
+                isAppHidden = false;
+                state.lastTime = 0;
+              }
+            });
+          }
+
+          this.bridge.send('VKWebAppInit')
+            .then(function() {
+              VKPlatform.isVK = true;
+              VKPlatform.preloadAds();
+              VKPlatform.loadCloudSave();
+              VKPlatform.showBanner();
+            })
+            .catch(function() {
+              VKPlatform.isVK = false;
+            });
+        }
+      } catch (e) {}
+    },
+    preloadAds: function() {
+      if (!this.isVK || !this.bridge) return;
+      try {
+        this.bridge.send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).catch(function() {});
+        this.bridge.send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).catch(function() {});
+      } catch (e) {}
+    },
+    showBanner: function() {
+      if (!this.isVK || !this.bridge) return;
+      try {
+        this.bridge.send('VKWebAppShowBannerAd', { banner_location: 'bottom' }).catch(function() {});
+      } catch (e) {}
+    },
+    showRewarded: function(onRewarded) {
+      isAppHidden = true;
+      if (this.isVK && this.bridge) {
+        this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+          .then(function(data) {
+            isAppHidden = false;
+            state.lastTime = 0;
+            if (data && data.result) {
+              if (typeof onRewarded === 'function') onRewarded();
+            }
+            VKPlatform.preloadAds();
+          })
+          .catch(function() {
+            isAppHidden = false;
+            state.lastTime = 0;
+            VKPlatform.simulateAd(onRewarded);
+          });
+      } else {
+        this.simulateAd(onRewarded);
+      }
+    },
+    showInterstitial: function() {
+      if (this.isVK && this.bridge) {
+        isAppHidden = true;
+        this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+          .then(function() {
+            isAppHidden = false;
+            state.lastTime = 0;
+            VKPlatform.preloadAds();
+          })
+          .catch(function() {
+            isAppHidden = false;
+            state.lastTime = 0;
+          });
+      }
+    },
+    showLeaderboard: function(score) {
+      if (this.isVK && this.bridge) {
+        try {
+          this.bridge.send('VKWebAppShowLeaderBoardBox', { user_result: Math.floor(score) }).catch(function() {});
+        } catch (e) {}
+      }
+    },
+    inviteFriends: function() {
+      if (this.isVK && this.bridge) {
+        try {
+          this.bridge.send('VKWebAppShowInviteBox', {}).catch(function() {});
+        } catch (e) {}
+      }
+    },
+    shareResult: function(dist) {
+      if (this.isVK && this.bridge) {
+        try {
+          this.bridge.send('VKWebAppShowWallPostBox', {
+            message: '🚚 Я прорвался сквозь пустошь на ' + Math.floor(dist) + ' м в игре «Авто-конвой»! Сможешь побить мой рекорд?'
+          }).catch(function() {});
+        } catch (e) {}
+      }
+    },
+    saveCloud: function(jsonStr) {
+      if (!this.isVK || !this.bridge) return;
+      try {
+        this.bridge.send('VKWebAppStorageSet', { key: 'convoy_save_v1', value: jsonStr }).catch(function() {});
+      } catch (e) {}
+    },
+    loadCloudSave: function() {
+      if (!this.isVK || !this.bridge) return;
+      try {
+        this.bridge.send('VKWebAppStorageGet', { keys: ['convoy_save_v1'] })
+          .then(function(data) {
+            if (data && data.keys && data.keys[0] && data.keys[0].value) {
+              var cloud = JSON.parse(data.keys[0].value);
+              if (cloud && cloud.upgrades) {
+                if ((cloud.bestDist || 0) > saveData.bestDist || (cloud.scrap || 0) > saveData.scrap) {
+                  saveData = cloud;
+                  SafeStorage.set('convoy_vk_save_v1', JSON.stringify(saveData));
+                  renderGarage();
+                }
+              }
+            }
+          })
+          .catch(function() {});
+      } catch (e) {}
+    },
+    simulateAd: function(onRewarded) {
+      var overlay = document.getElementById('ad-overlay');
+      var txt = document.getElementById('ad-timer-text');
+      overlay.classList.remove('hidden');
+      isAppHidden = true;
+      var sec = 2;
+      txt.textContent = 'Начисление награды через ' + sec + ' сек...';
+      var timer = setInterval(function() {
+        sec--;
+        if (sec > 0) {
+          txt.textContent = 'Начисление награды через ' + sec + ' сек...';
+        } else {
+          clearInterval(timer);
+          overlay.classList.add('hidden');
+          isAppHidden = false;
+          state.lastTime = 0;
+          if (typeof onRewarded === 'function') onRewarded();
+        }
+      }, 700);
+    }
+  };
+
+  // --- ДАННЫЕ И ПРОКАЧКА ---
+  var defaultSave = {
+    scrap: 60,
+    bestDist: 0,
+    upgrades: {
+      armor: 1,
+      weapon: 1,
+      engine: 1,
+      magnet: 1
+    }
+  };
+
+  var saveData = JSON.parse(JSON.stringify(defaultSave));
+  try {
+    var raw = SafeStorage.get('convoy_vk_save_v1');
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.upgrades) saveData = parsed;
+    }
+  } catch (e) {}
+
+  function persistSave() {
+    try {
+      var str = JSON.stringify(saveData);
+      SafeStorage.set('convoy_vk_save_v1', str);
+      VKPlatform.saveCloud(str);
+    } catch (e) {}
+  }
+
+  var UPGRADE_DEFS = [
+    { id: 'armor',  name: '🛡️ Броня',     desc: '+30 к прочности корпуса', baseCost: 30, mult: 1.45 },
+    { id: 'weapon', name: '🔫 Турель',    desc: '+25% урон и скорострельность', baseCost: 35, mult: 1.5 },
+    { id: 'engine', name: '⚙️ Двигатель', desc: '+10% скорость и бонус лома', baseCost: 30, mult: 1.45 },
+    { id: 'magnet', name: '🧲 Сборщик',   desc: 'Притягивает лом с соседних полос', baseCost: 40, mult: 1.6 }
+  ];
+
+  function getUpgradeCost(def) {
+    var lvl = saveData.upgrades[def.id] || 1;
+    return Math.floor(def.baseCost * Math.pow(def.mult, lvl - 1));
+  }
+
+  // --- DOM ЭЛЕМЕНТЫ ---
+  var canvas = document.getElementById('gameCanvas');
+  var ctx = canvas.getContext('2d');
+  var screenGarage = document.getElementById('screen-garage');
+  var screenGameover = document.getElementById('screen-gameover');
+  var hud = document.getElementById('hud');
+
+  var W = 360, H = 640;
+  function resizeCanvas() {
+    var wrapper = document.getElementById('game-wrapper');
+    W = wrapper.clientWidth || window.innerWidth;
+    H = wrapper.clientHeight || window.innerHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // --- СОСТОЯНИЕ ИГРЫ ---
+  var state = {
+    mode: 'garage',
+    lane: 1,
+    carX: 0,
+    carY: 0,
+    hp: 100,
+    maxHp: 100,
+    dist: 0,
+    runScrap: 0,
+    kills: 0,
+    speed: 260,
+    roadOffset: 0,
+    fireTimer: 0,
+    spawnTimer: 0,
+    revivedUsed: false,
+    doubledUsed: false,
+    nitroTimer: 0,
+    runsCount: 0,
+    skills: {
+      nitro:  { cd: 0, maxCd: 10 },
+      emp:    { cd: 0, maxCd: 14 },
+      repair: { cd: 0, maxCd: 18 }
+    },
+    bullets: [],
+    enemies: [],
+    pickups: [],
+    particles: [],
+    lastTime: 0
+  };
+
+  function getLaneX(laneIdx) {
+    var roadW = W * 0.78;
+    var left = (W - roadW) / 2;
+    var laneW = roadW / 3;
+    return left + laneW * (laneIdx + 0.5);
+  }
+
+  // --- РЕНДЕР ГАРАЖА ---
+  function renderGarage() {
+    document.getElementById('ui-scrap').textContent = saveData.scrap;
+    document.getElementById('ui-best').textContent = Math.floor(saveData.bestDist) + ' м';
+
+    var best = saveData.bestDist;
+    var rank = 'Рейтинг: Новичок (Топ 45%)';
+    if (best >= 2500) rank = 'Рейтинг: Легенда Пустоши (Топ 1%)';
+    else if (best >= 1200) rank = 'Рейтинг: Капитан Конвоя (Топ 8%)';
+    else if (best >= 500) rank = 'Рейтинг: Опытный Курьер (Топ 22%)';
+    document.getElementById('ui-rank').textContent = rank;
+
+    var container = document.getElementById('upgrades-list');
+    container.innerHTML = '';
+
+    UPGRADE_DEFS.forEach(function(def) {
+      var lvl = saveData.upgrades[def.id] || 1;
+      var cost = getUpgradeCost(def);
+      var canBuy = saveData.scrap >= cost;
+
+      var card = document.createElement('div');
+      card.className = 'upg-card';
+      card.innerHTML =
+        '<div>' +
+          '<div class="upg-title">' + def.name + '</div>' +
+          '<div class="upg-lvl">Уровень ' + lvl + '</div>' +
+          '<div class="upg-desc">' + def.desc + '</div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-upg"' + (canBuy ? '' : ' disabled') + '>Улучшить (' + cost + ' 🔩)</button>';
+
+      var btn = card.querySelector('button');
+      bindTap(btn, function() {
+        if (saveData.scrap >= cost) {
+          saveData.scrap -= cost;
+          saveData.upgrades[def.id] = lvl + 1;
+          persistSave();
+          Sound.play(520, 'triangle', 0.14, 0.08);
+          renderGarage();
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  // --- УНИВЕРСАЛЬНАЯ ПРИВЯЗКА НАЖАТИЯ ---
+  function bindTap(el, handler) {
+    if (!el) return;
+    var lastTouch = 0;
+    el.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      lastTouch = Date.now();
+      Sound.unlock();
+      handler(e);
+    }, { passive: false });
+
+    el.addEventListener('click', function(e) {
+      if (Date.now() - lastTouch < 450) return;
+      Sound.unlock();
+      handler(e);
+    });
+  }
+
+  // --- ЗАПУСК РЕЙСА ---
+  function startRun(isRevive) {
+    resizeCanvas();
+    var armorLvl = saveData.upgrades.armor || 1;
+    var engineLvl = saveData.upgrades.engine || 1;
+
+    state.maxHp = 100 + (armorLvl - 1) * 30;
+    if (!isRevive) {
+      state.hp = state.maxHp;
+      state.dist = 0;
+      state.runScrap = 0;
+      state.kills = 0;
+      state.revivedUsed = false;
+      state.doubledUsed = false;
+      state.lane = 1;
+      state.carX = getLaneX(1);
+    } else {
+      state.hp = Math.ceil(state.maxHp * 0.75);
+      state.revivedUsed = true;
+      state.nitroTimer = 2.5;
+    }
+
+    state.carY = H * 0.74;
+    state.speed = 250 + (engineLvl - 1) * 22;
+    state.bullets = [];
+    state.enemies = [];
+    state.pickups = [];
+    state.particles = [];
+    state.fireTimer = 0;
+    state.spawnTimer = 0.4;
+    state.skills.nitro.cd = 0;
+    state.skills.emp.cd = 0;
+    state.skills.repair.cd = 0;
+
+    state.mode = 'playing';
+    screenGarage.classList.add('hidden');
+    screenGameover.classList.add('hidden');
+    hud.classList.remove('hidden');
+
+    Sound.play(320, 'sawtooth', 0.2, 0.08);
+    updateHud();
+  }
+
+  // --- ЗАВЕРШЕНИЕ РЕЙСА ---
+  function endRun() {
+    state.mode = 'gameover';
+    state.runsCount++;
+    hud.classList.add('hidden');
+    screenGameover.classList.remove('hidden');
+
+    saveData.scrap += state.runScrap;
+    var isNewRecord = false;
+    if (state.dist > saveData.bestDist) {
+      saveData.bestDist = state.dist;
+      isNewRecord = true;
+    }
+    persistSave();
+
+    document.getElementById('go-dist').textContent = Math.floor(state.dist) + ' м';
+    document.getElementById('go-kills').textContent = state.kills;
+    document.getElementById('go-scrap').textContent = '+' + state.runScrap + ' 🔩';
+
+    var btnRevive = document.getElementById('btn-revive');
+    var btnDouble = document.getElementById('btn-double');
+    btnRevive.style.display = state.revivedUsed ? 'none' : 'block';
+    btnDouble.style.display = (state.doubledUsed || state.runScrap <= 0) ? 'none' : 'block';
+
+    Sound.play(110, 'sawtooth', 0.4, 0.12);
+
+    if (isNewRecord && state.dist >= 150) {
+      VKPlatform.showLeaderboard(state.dist);
+    }
+  }
+
+  // --- СМЕНА ПОЛОСЫ ---
+  function moveLane(dir) {
+    if (state.mode !== 'playing') return;
+    var next = Math.max(0, Math.min(2, state.lane + dir));
+    if (next !== state.lane) {
+      state.lane = next;
+      Sound.play(240, 'triangle', 0.06, 0.04);
+    }
+  }
+
+  // --- СПОСОБНОСТИ ---
+  function useSkill(name) {
+    if (state.mode !== 'playing') return;
+    var sk = state.skills[name];
+    if (!sk || sk.cd > 0) return;
+
+    sk.cd = sk.maxCd;
+    if (name === 'nitro') {
+      state.nitroTimer = 3.2;
+      Sound.play(440, 'sawtooth', 0.3, 0.09);
+      spawnParticles(state.carX, state.carY + 25, '#fb8500', 16);
+    } else if (name === 'emp') {
+      Sound.play(680, 'sine', 0.35, 0.1);
+      spawnParticles(state.carX, state.carY - 60, '#00b4d8', 24);
+      state.enemies.forEach(function(en) {
+        en.hp -= 80;
+        en.stunTimer = 2.5;
+      });
+    } else if (name === 'repair') {
+      state.hp = Math.min(state.maxHp, state.hp + state.maxHp * 0.35);
+      Sound.play(560, 'triangle', 0.25, 0.09);
+      spawnParticles(state.carX, state.carY, '#52b788', 16);
+    }
+  }
+
+  // --- ПРИВЯЗКА КНОПОК ---
+  bindTap(document.getElementById('btn-start'), function() { startRun(false); });
+  bindTap(document.getElementById('btn-sound'), function() {
+    Sound.muted = !Sound.muted;
+    document.getElementById('btn-sound').textContent = Sound.muted ? '🔇' : '🔊';
+  });
+  bindTap(document.getElementById('btn-top'), function() {
+    VKPlatform.showLeaderboard(saveData.bestDist || 0);
+  });
+  bindTap(document.getElementById('btn-invite'), function() {
+    VKPlatform.inviteFriends();
+  });
+  bindTap(document.getElementById('btn-free-scrap'), function() {
+    VKPlatform.showRewarded(function() {
+      saveData.scrap += 50;
+      persistSave();
+      renderGarage();
+      Sound.play(660, 'triangle', 0.25, 0.1);
+    });
+  });
+  bindTap(document.getElementById('btn-share'), function() {
+    VKPlatform.shareResult(state.dist);
+  });
+
+  bindTap(document.getElementById('btn-retry'), function() {
+    if (state.runsCount > 0 && state.runsCount % 2 === 0) {
+      VKPlatform.showInterstitial();
+    }
+    startRun(false);
+  });
+  bindTap(document.getElementById('btn-garage'), function() {
+    state.mode = 'garage';
+    screenGameover.classList.add('hidden');
+    hud.classList.add('hidden');
+    screenGarage.classList.remove('hidden');
+    renderGarage();
+    if (state.runsCount > 0 && state.runsCount % 2 === 0) {
+      VKPlatform.showInterstitial();
+    }
+  });
+
+  bindTap(document.getElementById('btn-revive'), function() {
+    VKPlatform.showRewarded(function() {
+      startRun(true);
+    });
+  });
+
+  bindTap(document.getElementById('btn-double'), function() {
+    VKPlatform.showRewarded(function() {
+      if (!state.doubledUsed) {
+        state.doubledUsed = true;
+        saveData.scrap += state.runScrap;
+        state.runScrap *= 2;
+        persistSave();
+        document.getElementById('go-scrap').textContent = '+' + state.runScrap + ' 🔩 (x2!)';
+        document.getElementById('btn-double').style.display = 'none';
+        Sound.play(660, 'triangle', 0.25, 0.1);
+      }
+    });
+  });
+
+  bindTap(document.getElementById('btn-left'), function() { moveLane(-1); });
+  bindTap(document.getElementById('btn-right'), function() { moveLane(1); });
+  bindTap(document.getElementById('skill-nitro'), function() { useSkill('nitro'); });
+  bindTap(document.getElementById('skill-emp'), function() { useSkill('emp'); });
+  bindTap(document.getElementById('skill-repair'), function() { useSkill('repair'); });
+
+  // Свайпы и тапы по Canvas
+  var touchStartX = null;
+  canvas.addEventListener('touchstart', function(e) {
+    Sound.unlock();
+    if (state.mode !== 'playing') return;
+    if (e.touches && e.touches.length > 0) {
+      touchStartX = e.touches[0].clientX;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', function(e) {
+    if (state.mode !== 'playing' || touchStartX === null) return;
+    var endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : touchStartX;
+    var diff = endX - touchStartX;
+    if (Math.abs(diff) > 24) {
+      moveLane(diff > 0 ? 1 : -1);
+    } else {
+      var rect = canvas.getBoundingClientRect();
+      var tapX = endX - rect.left;
+      moveLane(tapX < rect.width / 2 ? -1 : 1);
+    }
+    touchStartX = null;
+  }, { passive: true });
+
+  // Клавиатура
+  window.addEventListener('keydown', function(e) {
+    if (state.mode === 'garage' && (e.code === 'Space' || e.code === 'Enter')) {
+      startRun(false);
+      return;
+    }
+    if (state.mode !== 'playing') return;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLane(-1);
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') moveLane(1);
+    if (e.code === 'Digit1') useSkill('nitro');
+    if (e.code === 'Digit2') useSkill('emp');
+    if (e.code === 'Digit3') useSkill('repair');
+  });
+
+  // --- ЧАСТИЦЫ ---
+  function spawnParticles(x, y, color, count) {
+    for (var i = 0; i < count; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var spd = 40 + Math.random() * 140;
+      state.particles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        life: 0.35 + Math.random() * 0.25,
+        maxLife: 0.6,
+        color: color,
+        size: 3 + Math.random() * 4
+      });
+    }
+  }
+
+  // --- ОБНОВЛЕНИЕ ЛОГИКИ ---
+  function update(dt) {
+    if (state.mode !== 'playing') return;
+
+    var weaponLvl = saveData.upgrades.weapon || 1;
+    var engineLvl = saveData.upgrades.engine || 1;
+    var magnetLvl = saveData.upgrades.magnet || 1;
+
+    var wave = 1 + Math.floor(state.dist / 350);
+    var curSpeed = state.speed * (state.nitroTimer > 0 ? 1.55 : 1) + wave * 8;
+    if (state.nitroTimer > 0) state.nitroTimer -= dt;
+
+    state.dist += (curSpeed * dt) / 14;
+    state.roadOffset = (state.roadOffset + curSpeed * dt) % 60;
+
+    var targetX = getLaneX(state.lane);
+    state.carX += (targetX - state.carX) * Math.min(1, dt * 14);
+    state.carY = H * 0.74;
+
+    ['nitro', 'emp', 'repair'].forEach(function(k) {
+      if (state.skills[k].cd > 0) {
+        state.skills[k].cd = Math.max(0, state.skills[k].cd - dt);
+      }
+    });
+
+    var fireInterval = Math.max(0.11, 0.34 - (weaponLvl - 1) * 0.025);
+    state.fireTimer -= dt;
+    if (state.fireTimer <= 0) {
+      state.fireTimer = fireInterval;
+      var dmg = 18 + (weaponLvl - 1) * 8;
+      state.bullets.push({
+        x: state.carX,
+        y: state.carY - 34,
+        vy: -620,
+        dmg: dmg
+      });
+      Sound.play(760, 'square', 0.04, 0.02);
+    }
+
+    state.spawnTimer -= dt;
+    if (state.spawnTimer <= 0) {
+      state.spawnTimer = Math.max(0.45, 1.15 - wave * 0.06);
+      var lane = Math.floor(Math.random() * 3);
+      var roll = Math.random();
+      if (roll < 0.68) {
+        var isHeavy = Math.random() < 0.25 && wave >= 2;
+        var baseHp = isHeavy ? (75 + wave * 22) : (32 + wave * 12);
+        state.enemies.push({
+          lane: lane,
+          x: getLaneX(lane),
+          y: -50,
+          hp: baseHp,
+          maxHp: baseHp,
+          vy: isHeavy ? curSpeed * 0.42 : curSpeed * 0.58,
+          isHeavy: isHeavy,
+          stunTimer: 0
+        });
+      } else {
+        state.pickups.push({
+          lane: lane,
+          x: getLaneX(lane),
+          y: -30,
+          type: Math.random() < 0.18 ? 'heal' : 'scrap',
+          val: Math.floor((8 + wave * 2) * (1 + (engineLvl - 1) * 0.1))
+        });
+      }
+    }
+
+    for (var i = state.bullets.length - 1; i >= 0; i--) {
+      var b = state.bullets[i];
+      b.y += b.vy * dt;
+      if (b.y < -20) {
+        state.bullets.splice(i, 1);
+        continue;
+      }
+      for (var j = state.enemies.length - 1; j >= 0; j--) {
+        var en = state.enemies[j];
+        if (Math.abs(b.x - en.x) < 26 && Math.abs(b.y - en.y) < 30) {
+          en.hp -= b.dmg;
+          spawnParticles(b.x, b.y, '#ffb703', 4);
+          state.bullets.splice(i, 1);
+          if (en.hp <= 0) {
+            state.kills++;
+            var drop = Math.floor((6 + wave * 2) * (1 + (engineLvl - 1) * 0.1));
+            state.runScrap += drop;
+            spawnParticles(en.x, en.y, '#fb8500', 14);
+            Sound.play(150, 'sawtooth', 0.18, 0.07);
+            state.enemies.splice(j, 1);
+          }
+          break;
+        }
+      }
+    }
+
+    for (var k = state.enemies.length - 1; k >= 0; k--) {
+      var e = state.enemies[k];
+      if (e.stunTimer > 0) {
+        e.stunTimer -= dt;
+        e.y += curSpeed * 0.75 * dt;
+      } else {
+        e.y += e.vy * dt;
+      }
+
+      if (Math.abs(e.x - state.carX) < 36 && Math.abs(e.y - state.carY) < 48) {
+        if (state.nitroTimer > 0) {
+          state.kills++;
+          state.runScrap += 10;
+          spawnParticles(e.x, e.y, '#fb8500', 18);
+          Sound.play(180, 'sawtooth', 0.2, 0.09);
+        } else {
+          var hitDmg = e.isHeavy ? 34 : 22;
+          state.hp -= hitDmg;
+          spawnParticles(state.carX, state.carY - 20, '#e63946', 14);
+          Sound.play(95, 'sawtooth', 0.25, 0.11);
+        }
+        state.enemies.splice(k, 1);
+        if (state.hp <= 0) {
+          state.hp = 0;
+          updateHud();
+          endRun();
+          return;
+        }
+        continue;
+      }
+
+      if (e.y > H + 60) {
+        state.enemies.splice(k, 1);
+      }
+    }
+
+    var magnetRange = 42 + (magnetLvl - 1) * 35;
+    for (var m = state.pickups.length - 1; m >= 0; m--) {
+      var p = state.pickups[m];
+      p.y += curSpeed * 0.85 * dt;
+
+      var dx = state.carX - p.x;
+      var dy = state.carY - p.y;
+      var distToCar = Math.hypot(dx, dy);
+      if (distToCar < magnetRange && distToCar > 1) {
+        p.x += (dx / distToCar) * 280 * dt;
+        p.y += (dy / distToCar) * 280 * dt;
+      }
+
+      if (distToCar < 38) {
+        if (p.type === 'heal') {
+          state.hp = Math.min(state.maxHp, state.hp + state.maxHp * 0.2);
+          spawnParticles(state.carX, state.carY, '#52b788', 10);
+          Sound.play(580, 'sine', 0.14, 0.07);
+        } else {
+          state.runScrap += p.val;
+          spawnParticles(state.carX, state.carY, '#ffb703', 8);
+          Sound.play(680, 'triangle', 0.1, 0.06);
+        }
+        state.pickups.splice(m, 1);
+        continue;
+      }
+
+      if (p.y > H + 40) state.pickups.splice(m, 1);
+    }
+
+    for (var pt = state.particles.length - 1; pt >= 0; pt--) {
+      var part = state.particles[pt];
+      part.x += part.vx * dt;
+      part.y += part.vy * dt;
+      part.life -= dt;
+      if (part.life <= 0) state.particles.splice(pt, 1);
+    }
+
+    updateHud();
+  }
+
+  function updateHud() {
+    var pct = Math.max(0, Math.min(100, (state.hp / state.maxHp) * 100));
+    document.getElementById('hud-hp-fill').style.width = pct + '%';
+    document.getElementById('hud-hp-text').textContent = Math.ceil(state.hp) + ' / ' + state.maxHp;
+    document.getElementById('hud-scrap').textContent = state.runScrap;
+    document.getElementById('hud-dist').textContent = Math.floor(state.dist) + ' м';
+    document.getElementById('hud-wave').textContent = 1 + Math.floor(state.dist / 350);
+
+    ['nitro', 'emp', 'repair'].forEach(function(k) {
+      var btn = document.getElementById('skill-' + k);
+      var bar = document.getElementById('cd-' + k);
+      var sk = state.skills[k];
+      btn.disabled = sk.cd > 0;
+      bar.style.width = (sk.cd > 0 ? (sk.cd / sk.maxCd) * 100 : 0) + '%';
+    });
+  }
+
+  // --- ОТРИСОВКА ---
+  function draw() {
+    ctx.fillStyle = '#2b2118';
+    ctx.fillRect(0, 0, W, H);
+
+    var roadW = W * 0.78;
+    var left = (W - roadW) / 2;
+    ctx.fillStyle = '#1f1d1b';
+    ctx.fillRect(left, 0, roadW, H);
+
+    ctx.fillStyle = '#d95d00';
+    ctx.fillRect(left - 5, 0, 5, H);
+    ctx.fillRect(left + roadW, 0, 5, H);
+
+    ctx.strokeStyle = 'rgba(243, 233, 210, 0.25)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([28, 32]);
+    ctx.lineDashOffset = -state.roadOffset;
+    for (var l = 1; l <= 2; l++) {
+      var lx = left + (roadW / 3) * l;
+      ctx.beginPath();
+      ctx.moveTo(lx, 0);
+      ctx.lineTo(lx, H);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    state.pickups.forEach(function(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.fillStyle = p.type === 'heal' ? '#52b788' : '#ffb703';
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#12100e';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.type === 'heal' ? '+' : '⚙', 0, 1);
+      ctx.restore();
+    });
+
+    state.enemies.forEach(function(e) {
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      var w = e.isHeavy ? 46 : 36;
+      var h = e.isHeavy ? 64 : 50;
+
+      ctx.fillStyle = e.stunTimer > 0 ? '#00b4d8' : (e.isHeavy ? '#7f1d1d' : '#b91c1c');
+      ctx.beginPath();
+      ctx.roundRect(-w / 2, -h / 2, w, h, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#d4d4d8';
+      ctx.fillRect(-w / 2 + 4, h / 2 - 4, w - 8, 6);
+
+      var hpW = w;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(-hpW / 2, -h / 2 - 10, hpW, 5);
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(-hpW / 2, -h / 2 - 10, hpW * Math.max(0, e.hp / e.maxHp), 5);
+      ctx.restore();
+    });
+
+    ctx.fillStyle = '#ffd166';
+    state.bullets.forEach(function(b) {
+      ctx.fillRect(b.x - 3, b.y - 10, 6, 16);
+    });
+
+    if (state.mode === 'playing' || state.mode === 'gameover') {
+      ctx.save();
+      ctx.translate(state.carX, state.carY);
+
+      if (state.nitroTimer > 0) {
+        ctx.strokeStyle = '#fb8500';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 44, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#e09f3e';
+      ctx.beginPath();
+      ctx.roundRect(-21, -34, 42, 68, 9);
+      ctx.fill();
+
+      ctx.fillStyle = '#335c67';
+      ctx.fillRect(-15, -18, 30, 18);
+
+      ctx.fillStyle = '#9e2a2b';
+      ctx.beginPath();
+      ctx.moveTo(-22, -32);
+      ctx.lineTo(0, -44);
+      ctx.lineTo(22, -32);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#2b2d42';
+      ctx.beginPath();
+      ctx.arc(0, 8, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-3, -12, 6, 20);
+
+      ctx.restore();
+    }
+
+    state.particles.forEach(function(pt) {
+      ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // --- ИГРОВОЙ ЦИКЛ ---
+  function loop(ts) {
+    if (!isAppHidden) {
+      if (!state.lastTime) state.lastTime = ts;
+      var dt = Math.min(0.05, (ts - state.lastTime) / 1000);
+      state.lastTime = ts;
+
+      update(dt);
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  VKPlatform.init();
+  state.carX = getLaneX(1);
+  state.carY = H * 0.74;
+  renderGarage();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
